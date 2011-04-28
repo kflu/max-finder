@@ -18,43 +18,79 @@ Example:
 '''
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig()
+logger = logging.getLogger("FastUI")
+logger.setLevel(logging.DEBUG)
 
-def init(widget_class):
-    def geo(self, method, *args, **kw):
-        getattr(self, method)(*args, **kw)
-        return self
-    widget_class.geo = geo
+def make_ui():
+    class UI:
+        def __init__(self, cls, alias=None, *args, **kwargs):
+            logger.debug("Creating %s:%s:%s" % (cls, args, kwargs))
+            self.__cls = cls
+            self.__alias = alias
+            self.__args = args
+            self.__kwargs = kwargs
 
-def UI(cls, name, *args, **kw):
-    logging.debug("calling UI for: %s ===="%name)
-    tmp = cls()
-    tmp.ui_meta = {
-            'type':'UI',
-            'name':name,
-            }
+            # call those methods on creation. Each element is a tuple:
+            #   (callable, args, kwargs)
+            # Upon invoking, it's like:
+            #   callable( widget, *args, **kwargs )
+            self.__on_creation = []
 
-    args = list(args)
-    print args
-    for arg in enumerate(args[:]):
-        tp = getattr(arg, 'ui_meta', {}).get('type','')
-        if tp.lower() == 'ui':
-            setattr(tmp, arg.ui_meta['name'], arg)
-            arg.master = tmp
+        def call_on_creation(self, method, *args, **kwargs):
+            logger.debug("Adding callback: %s:%s:%s" % (method, args, kwargs))
+            self.__on_creation.append(
+                    (method, args, kwargs) )
+            return self
 
-    logging.debug('before restructuring: ' + str(list(args)))
-    args = (arg for arg in args if not hasattr(arg, 'ui_meta'))
-    logging.debug('after restructuring: ' + str(list(args)))
+        def pack(self, *args, **kwargs):
+            self.call_on_creation(self.__cls.pack, args, kwargs)
+            return self
+        def grid(self, *args, **kwargs):
+            self.call_on_creation(self.__cls.grid, args, kwargs)
+            return self
 
-    tmp.config(*args, **kw)
-    return tmp
+        def has(self, *args, **kwargs):
+            self.__children = args
+            self.__named_children = kwargs
+            return self
+
+        def create(self, master=None):
+            # create my self
+            tmp = self.__cls(master, *self.__args, **self.__kwargs)
+            if self.__alias:
+                setattr(UI, self.__alias, tmp)
+
+            # call on creation:
+            for (func, args, kwargs) in self.__on_creation:
+                logger.debug("invoking %s:%s:%s" % (func, args, kwargs))
+                func(tmp, *args, **kwargs)
+
+            # create children
+            for child in self.__children:
+                child.create(tmp)
+
+            for k in self.__named_children:
+                o = self.__named_children[k].create(tmp)
+                setattr(tmp, k, o)
+
+            return tmp
+    return UI
 
 if __name__ == '__main__':
     from Tkinter import *
-    init(Widget)
-    main = UI(Frame, "main", 
-                UI(Button, "b1", text='b1').geo('pack'),
-                UI(Button, "b2", text='b2').geo('pack'),
-                )
-    #main.master is a Tk instance.
-    main.master.title("main window")
+
+    ui = make_ui()
+
+    tree = ui(Frame, border=5, relief='sunken').pack().has(
+            ui(Frame, border=2, relief='sunken').grid(row=1).has(
+                ui(Button, alias = 'b2', text='hello').pack()),
+            b1 = ui(Button, text='hi').grid(row=0, column=0).pack(),
+            )
+    gui = tree.create(Tk())
+
+    # named widgets can be accessible by walking the widget tree
+    print gui.b1
+
+    # aliased widgets can also be accessible this way. But are flat
+    print gui.b2
