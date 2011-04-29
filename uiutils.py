@@ -77,10 +77,15 @@ def make_ui():
                 o = self.__named_children[k].create(tmp)
                 setattr(tmp, k, o)
 
+            return tmp
+
+        def build_all(self, master=None):
+            tmp = self.create(master)
+
             for k in UI.__aliases:
                 setattr(tmp, k, UI.__aliases[k])
-
             return tmp
+
     return UI
 
 if __name__ == '__main__':
@@ -95,7 +100,7 @@ if __name__ == '__main__':
                 ui(Frame, 'f1', border=20, relief='sunken').pack().has(
                     ui(Button, text='hello world!').pack()))
 
-    gui = tree.create(tk)
+    gui = tree.build_all(tk)
     gui.update()
 
     import time;time.sleep(5)
