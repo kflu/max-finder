@@ -24,12 +24,15 @@ logger.setLevel(logging.DEBUG)
 
 def make_ui():
     class UI:
+        __aliases = {}
         def __init__(self, cls, alias=None, *args, **kwargs):
             logger.debug("Creating %s:%s:%s" % (cls, args, kwargs))
             self.__cls = cls
             self.__alias = alias
             self.__args = args
             self.__kwargs = kwargs
+            self.__children = []
+            self.__named_children = {}
 
             # call those methods on creation. Each element is a tuple:
             #   (callable, args, kwargs)
@@ -44,10 +47,10 @@ def make_ui():
             return self
 
         def pack(self, *args, **kwargs):
-            self.call_on_creation(self.__cls.pack, args, kwargs)
+            self.call_on_creation(self.__cls.pack, *args, **kwargs)
             return self
         def grid(self, *args, **kwargs):
-            self.call_on_creation(self.__cls.grid, args, kwargs)
+            self.call_on_creation(self.__cls.grid, *args, **kwargs)
             return self
 
         def has(self, *args, **kwargs):
@@ -59,7 +62,7 @@ def make_ui():
             # create my self
             tmp = self.__cls(master, *self.__args, **self.__kwargs)
             if self.__alias:
-                setattr(UI, self.__alias, tmp)
+                UI.__aliases[self.__alias] = tmp
 
             # call on creation:
             for (func, args, kwargs) in self.__on_creation:
@@ -74,6 +77,9 @@ def make_ui():
                 o = self.__named_children[k].create(tmp)
                 setattr(tmp, k, o)
 
+            for k in UI.__aliases:
+                setattr(tmp, k, UI.__aliases[k])
+
             return tmp
     return UI
 
@@ -82,15 +88,17 @@ if __name__ == '__main__':
 
     ui = make_ui()
 
-    tree = ui(Frame, border=5, relief='sunken').pack().has(
-            ui(Frame, border=2, relief='sunken').grid(row=1).has(
-                ui(Button, alias = 'b2', text='hello').pack()),
-            b1 = ui(Button, text='hi').grid(row=0, column=0).pack(),
-            )
-    gui = tree.create(Tk())
+    tk = Tk()
 
-    # named widgets can be accessible by walking the widget tree
-    print gui.b1
+    tree = ui(Frame, border=10, relief='sunken').pack().has(
+                ui(Button, 'b1', text='hi').pack(),
+                ui(Frame, 'f1', border=20, relief='sunken').pack().has(
+                    ui(Button, text='hello world!').pack()))
 
-    # aliased widgets can also be accessible this way. But are flat
-    print gui.b2
+    gui = tree.create(tk)
+    gui.update()
+
+    import time;time.sleep(5)
+    gui.b1['text']='changed!'
+
+    tk.mainloop()
