@@ -18,7 +18,6 @@ Example:
 '''
 
 import logging
-logging.basicConfig()
 logger = logging.getLogger("FastUI")
 logger.setLevel(logging.DEBUG)
 

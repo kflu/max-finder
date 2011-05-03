@@ -1,66 +1,39 @@
 from Tkinter import *
 from ttk import *
-from Tkinter import Checkbutton
-import tkFileDialog
-#from ttk import *
+from uiutils import make_ui
+import logging
+logger = logging.getLogger("UI")
 
-class Dashboard(Frame):
-    def __init__(self, parent):
-        Frame.__init__(self, parent)
+ui = make_ui()
 
-        srch_bar = Frame(parent)
-        self.entry_search_pattern = Entry(srch_bar)
-        self.entry_search_pattern.bind('<FocusIn>', lambda e: self.entry_search_pattern.selection_range(0, END))
-        self.button_do_search = Button(srch_bar, text='Search')
+SearchPane = ui(Frame).has(
+                ui(Entry, 'searchEntry').pack(side=LEFT),
+                ui(Button, 'searchButton', text='Search').pack())
 
-        self.checkbutton_ignore_case = Checkbutton(self, text='Ignore case')
-        self.checkbutton_ignore_case.deselect()
+OptionsPane = ui(Frame).has(
+                ui(Checkbutton, 'ignCsCkBtn', text="Ignore case").pack(anchor=W),
+                ui(Checkbutton, 'mtchWhlWdCkBtn', text="Match whole word").pack(anchor=W))
 
-        # layout
-        
-        self.checkbutton_ignore_case.grid(row=1, column=0)
+TargetPane = ui(Frame).has(
+                ui(Entry, 'targetDirEntry').pack(),
+                ui(Button, 'targetDirButton', text='Choose directory').pack())
 
-class TargetDirPane(LabelFrame):
-    def __init__(self, parent):
-        LabelFrame.__init__(self, parent, text='Target Directories')
+ControlPane = ui(Frame).has(
+                TargetPane.pack(side=LEFT, anchor=NW),
+                ui(Frame).pack().has(
+                    SearchPane.pack(),
+                    OptionsPane.pack()))
 
-        self.button_browse = Button(self, text='Choose...', command=self.__askdir)
+ResultPane = ui(Frame).has(
+                ui(Listbox).pack(expand=1, fill=BOTH))
 
-        self.__chosen_dir = StringVar()
-        self.__chosen_dir.set("")
-        self.entry_target = Entry(self, textvariable = self.__chosen_dir)
-
-        # Show
-        self.button_browse.pack()
-        self.entry_target.pack()
-
-    def __askdir(self):
-        self.__chosen_dir.set(tkFileDialog.askdirectory())
-
-class ResultPane(LabelFrame):
-    def __init__(self, parent):
-        LabelFrame.__init__(self, parent, text = 'Results')
-
-        # widgets
-        self.listbox = Listbox(self, height=10)
-
-        # show
-        self.listbox.pack()
-
-class Preview(Frame):
-    pass
+Main = ui(Frame).pack(fill=BOTH, expand=1).has(
+            ControlPane.pack(),
+            ResultPane.pack(expand=1, fill=BOTH))
 
 
 if __name__ == '__main__':
-    root = Tk()
-    root.title('Max search')
-
-    dash = Dashboard(root)
-    dirpane = TargetDirPane(root)
-    listbox = ResultPane(root)
-
-    dirpane.pack(side=LEFT)
-    dash.pack(side=LEFT)
-    listbox.pack()
-
-    root.mainloop()
+    logging.basicConfig()
+    tk = Tk()
+    main = Main.build_all(tk)
+    tk.mainloop()
