@@ -1,0 +1,1 @@
+A GUI program that find strings
